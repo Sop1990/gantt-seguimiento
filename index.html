@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Seguimiento de proyectos - Trust y Ubiqcuore</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://apis.google.com/js/api.js"></script>
+<style>
+:root {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f5f4ef;
+  --bg-tertiary: #eeede7;
+  --bg-info: #e6f1fb;
+  --bg-danger: #fcebeb;
+  --bg-success: #e1f5ee;
+  --bg-warning: #faeeda;
+  --text-primary: #1a1a1a;
+  --text-secondary: #6b6b66;
+  --text-tertiary: #9a9a93;
+  --text-info: #0c447c;
+  --text-danger: #501313;
+  --text-success: #04342c;
+  --text-warning: #633806;
+  --border-tertiary: rgba(0,0,0,0.10);
+  --border-secondary: rgba(0,0,0,0.20);
+  --border-info: #378add;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+}
+* { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+  margin: 0;
+  padding: 16px;
+  font-size: 14px;
+}
+.app-wrap { max-width: 1400px; margin: 0 auto; }
+h1 { font-size: 18px; font-weight: 500; margin: 0 0 16px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.sync-badge { font-size: 11px; padding: 3px 8px; border-radius: 10px; background: var(--bg-secondary); color: var(--text-secondary); font-weight: 400; }
+.sync-badge.connected { background: var(--bg-success); color: var(--text-success); }
+.sync-badge.error { background: var(--bg-danger); color: var(--text-danger); }
+.sync-badge.syncing { background: var(--bg-warning); color: var(--text-warning); }
+.app-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; gap: 12px; flex-wrap: wrap; }
+.company-tabs { display: flex; gap: 6px; }
+.company-tab { padding: 8px 16px; border: 0.5px solid var(--border-tertiary); background: var(--bg-primary); border-radius: var(--radius-md); cursor: pointer; font-size: 14px; color: var(--text-secondary); font-family: inherit; }
+.company-tab.active { background: var(--bg-info); color: var(--text-info); border-color: var(--border-info); font-weight: 500; }
+.toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.toolbar select, .toolbar button { font-size: 13px; padding: 6px 12px; border: 0.5px solid var(--border-tertiary); background: var(--bg-primary); border-radius: var(--radius-md); cursor: pointer; color: var(--text-primary); font-family: inherit; }
+.toolbar button:hover { background: var(--bg-secondary); }
+.toolbar button.primary { background: var(--bg-info); color: var(--text-info); border-color: var(--border-info); }
+.layout { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 12px; }
+.sidebar { background: var(--bg-secondary); border-radius: var(--radius-lg); padding: 12px; align-self: start; }
+.sidebar-title { font-size: 13px; font-weight: 500; color: var(--text-secondary); margin: 0 0 8px; padding: 0 4px; }
+.project-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; border-radius: var(--radius-md); cursor: pointer; font-size: 13px; margin-bottom: 2px; }
+.project-item:hover { background: var(--bg-primary); }
+.project-item.active { background: var(--bg-primary); font-weight: 500; }
+.project-item span:first-child { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.project-item .del { opacity: 0; color: var(--text-danger); font-size: 11px; padding: 2px 6px; border-radius: 4px; cursor: pointer; }
+.project-item:hover .del { opacity: 1; }
+.project-item .del:hover { background: var(--bg-danger); }
+.add-btn { width: 100%; padding: 8px; font-size: 13px; border: 0.5px dashed var(--border-secondary); background: transparent; border-radius: var(--radius-md); cursor: pointer; color: var(--text-secondary); margin-top: 6px; font-family: inherit; }
+.add-btn:hover { background: var(--bg-primary); }
+.main { background: var(--bg-primary); border: 0.5px solid var(--border-tertiary); border-radius: var(--radius-lg); overflow: hidden; }
+.gantt-container { overflow-x: auto; max-height: 600px; overflow-y: auto; }
+.gantt-table { border-collapse: collapse; font-size: 12px; min-width: 100%; }
+.gantt-table th, .gantt-table td { border-right: 0.5px solid var(--border-tertiary); border-bottom: 0.5px solid var(--border-tertiary); padding: 0; }
+.gantt-table thead th { background: var(--bg-secondary); padding: 8px 6px; font-weight: 500; color: var(--text-secondary); position: sticky; top: 0; z-index: 2; text-align: center; font-size: 11px; }
+.col-task { min-width: 240px; max-width: 240px; padding: 8px 10px !important; text-align: left !important; font-size: 12px; background: var(--bg-primary) !important; position: sticky; left: 0; z-index: 3; }
+.col-resp { min-width: 100px; max-width: 100px; padding: 8px 6px !important; text-align: left !important; font-size: 11px; color: var(--text-secondary); background: var(--bg-primary) !important; position: sticky; left: 240px; z-index: 3; }
+.col-status { min-width: 90px; max-width: 90px; padding: 8px 6px !important; text-align: center !important; background: var(--bg-primary) !important; position: sticky; left: 340px; z-index: 3; }
+.gantt-table thead .col-task, .gantt-table thead .col-resp, .gantt-table thead .col-status { background: var(--bg-secondary) !important; z-index: 4; }
+.project-row td { background: var(--bg-secondary); font-weight: 500; padding: 6px 10px !important; font-size: 12px; }
+.project-row .col-task, .project-row .col-resp, .project-row .col-status { background: var(--bg-secondary) !important; }
+.project-row .col-task { cursor: pointer; }
+.toggle-icon { display: inline-block; width: 16px; text-align: center; color: var(--text-secondary); font-size: 10px; margin-right: 4px; transition: transform 0.15s; }
+.toggle-icon.collapsed { transform: rotate(-90deg); }
+.company-badge { display: inline-block; font-size: 9px; padding: 1px 6px; border-radius: 6px; font-weight: 500; margin-left: 6px; }
+.company-badge.ubiqcuore { background: var(--bg-info); color: var(--text-info); }
+.company-badge.trust { background: #eedffa; color: #3c3489; }
+.activity-row:hover td { background: var(--bg-tertiary); }
+.activity-row:hover .col-task, .activity-row:hover .col-resp, .activity-row:hover .col-status { background: var(--bg-tertiary) !important; }
+.bar { position: absolute; top: 6px; height: 18px; border-radius: 4px; cursor: pointer; overflow: hidden; }
+.bar-fill { height: 100%; background: rgba(0,0,0,0.18); }
+.bar-label { position: absolute; top: 0; left: 6px; right: 6px; line-height: 18px; font-size: 10px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bar.s-nostart { background: #D3D1C7; } .bar.s-nostart .bar-label { color: #2C2C2A; }
+.bar.s-progress { background: #B5D4F4; } .bar.s-progress .bar-label { color: #042C53; } .bar.s-progress .bar-fill { background: #378ADD; }
+.bar.s-done { background: #9FE1CB; } .bar.s-done .bar-label { color: #04342C; } .bar.s-done .bar-fill { background: #1D9E75; }
+.bar.s-late { background: #F7C1C1; } .bar.s-late .bar-label { color: #501313; } .bar.s-late .bar-fill { background: #E24B4A; }
+.status-pill { font-size: 10px; padding: 2px 6px; border-radius: 8px; font-weight: 500; }
+.status-pill.s-nostart { background: #F1EFE8; color: #2C2C2A; }
+.status-pill.s-progress { background: #E6F1FB; color: #042C53; }
+.status-pill.s-done { background: #E1F5EE; color: #04342C; }
+.status-pill.s-late { background: #FCEBEB; color: #501313; }
+.empty-state { padding: 40px; text-align: center; color: var(--text-secondary); font-size: 13px; }
+.form-panel { background: var(--bg-secondary); border-radius: var(--radius-lg); padding: 14px; margin-top: 12px; display: none; }
+.form-panel.open { display: block; }
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+.form-grid label { font-size: 11px; color: var(--text-secondary); display: block; margin-bottom: 4px; }
+.form-grid input, .form-grid select { width: 100%; padding: 6px 8px; font-size: 13px; border: 0.5px solid var(--border-tertiary); border-radius: var(--radius-md); background: var(--bg-primary); color: var(--text-primary); font-family: inherit; }
+.form-actions { display: flex; gap: 8px; margin-top: 10px; justify-content: flex-end; }
+.form-actions button { padding: 6px 14px; font-size: 13px; border: 0.5px solid var(--border-tertiary); background: var(--bg-primary); border-radius: var(--radius-md); cursor: pointer; color: var(--text-primary); font-family: inherit; }
+.form-actions button.primary { background: var(--bg-info); color: var(--text-info); border-color: var(--border-info); }
+.form-actions button:hover { background: var(--bg-secondary); }
+.row-actions { display: inline-flex; gap: 4px; margin-left: 6px; }
+.row-actions button { font-size: 10px; padding: 2px 5px; border: none; background: transparent; cursor: pointer; color: var(--text-secondary); border-radius: 3px; font-family: inherit; }
+.row-actions button:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+.add-act-row td { padding: 6px 10px !important; text-align: left !important; }
+.add-act-row button { font-size: 11px; padding: 4px 8px; border: 0.5px dashed var(--border-secondary); background: transparent; border-radius: var(--radius-md); cursor: pointer; color: var(--text-secondary); font-family: inherit; }
+.add-act-row button:hover { background: var(--bg-secondary); }
+.metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.metric-card { background: var(--bg-primary); border-radius: var(--radius-md); padding: 14px 16px; border: 0.5px solid var(--border-tertiary); }
+.metric-label { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 6px; }
+.metric-value { font-size: 24px; font-weight: 500; margin: 0; }
+.metric-sub { font-size: 11px; color: var(--text-tertiary); margin: 4px 0 0; }
+.config-modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 100; align-items: center; justify-content: center; }
+.config-modal.open { display: flex; }
+.config-box { background: var(--bg-primary); padding: 24px; border-radius: var(--radius-lg); max-width: 500px; width: 90%; }
+.config-box h2 { margin: 0 0 12px; font-size: 16px; font-weight: 500; }
+.config-box p { font-size: 13px; color: var(--text-secondary); margin: 0 0 12px; line-height: 1.5; }
+.config-box input { width: 100%; padding: 8px; font-size: 13px; border: 0.5px solid var(--border-tertiary); border-radius: var(--radius-md); margin-bottom: 12px; font-family: inherit; }
+</style>
+</head>
+<body>
+<div class="app-wrap">
+  <h1>Seguimiento de proyectos <span class="sync-badge" id="sync-status">Sin conectar a Drive</span></h1>
+  <div class="app-header">
+    <div class="company-tabs" id="company-tabs">
+      <button class="company-tab active" data-company="ubiqcuore">Ubiqcuore</button>
+      <button class="company-tab" data-company="trust">Trust</button>
+      <button class="company-tab" data-company="consolidated">Consolidado</button>
+    </div>
+    <div class="toolbar">
+      <select id="scale-select">
+        <option value="day">Días</option>
+        <option value="week" selected>Semanas</option>
+        <option value="month">Meses</option>
+      </select>
+      <button id="collapse-all-btn">Colapsar todo</button>
+      <button id="add-project-btn">+ Proyecto</button>
+      <button id="export-btn">Exportar PNG</button>
+      <button id="export-json-btn">Backup JSON</button>
+      <button id="import-json-btn">Importar JSON</button>
+      <button id="drive-btn" class="primary">Conectar Drive</button>
+      <input type="file" id="import-file" accept="application/json" style="display:none;" />
+    </div>
+  </div>
+
+  <div id="metrics-section" style="display:none;">
+    <div class="metrics-grid" id="metrics-grid"></div>
+  </div>
+
+  <div class="layout">
+    <div class="sidebar" id="sidebar">
+      <p class="sidebar-title">Proyectos</p>
+      <div id="project-list"></div>
+      <button class="add-btn" id="add-project-sidebar">+ Nuevo proyecto</button>
+    </div>
+    <div class="main" id="gantt-main">
+      <div class="gantt-container" id="gantt-container"></div>
+    </div>
+  </div>
+
+  <div class="form-panel" id="form-panel">
+    <p style="font-size: 13px; font-weight: 500; margin: 0 0 10px;" id="form-title">Nueva actividad</p>
+    <div class="form-grid">
+      <div><label>Nombre</label><input type="text" id="f-name" /></div>
+      <div><label>Responsable</label><input type="text" id="f-resp" /></div>
+      <div><label>Fecha inicio</label><input type="date" id="f-start" /></div>
+      <div><label>Fecha fin</label><input type="date" id="f-end" /></div>
+      <div><label>Estado</label>
+        <select id="f-status">
+          <option value="nostart">No iniciada</option>
+          <option value="progress">En curso</option>
+          <option value="done">Completada</option>
+          <option value="late">Retrasada</option>
+        </select>
+      </div>
+      <div><label>Avance (%)</label><input type="number" id="f-progress" min="0" max="100" step="5" /></div>
+    </div>
+    <div class="form-actions">
+      <button id="form-cancel">Cancelar</button>
+      <button class="primary" id="form-save">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="config-modal" id="config-modal">
+  <div class="config-box">
+    <h2>Configurar Google Drive</h2>
+    <p>Pega tu Client ID de Google Cloud Console. Lo guardamos en este navegador para no pedírtelo de nuevo.</p>
+    <input type="text" id="client-id-input" placeholder="123456789-abc.apps.googleusercontent.com" />
+    <div class="form-actions">
+      <button id="config-cancel">Cancelar</button>
+      <button class="primary" id="config-save">Guardar y conectar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const STORAGE_KEY = 'gantt-app-data-v1';
+  const COLLAPSE_KEY = 'gantt-collapsed-v1';
+  const CLIENT_ID_KEY = 'gantt-google-client-id';
+  const DRIVE_FILE_ID_KEY = 'gantt-drive-file-id';
+  const DRIVE_FILENAME = 'gantt-ubiqcuore-trust-data.json';
+  const MS_DAY = 86400000;
+  const SCOPES = 'https://www.googleapis.com/auth/drive.file';
+
+  const seedData = {
+    ubiqcuore: {
+      projects: [
+        {
+          id: 'p1', name: 'Misión La Guajira',
+          activities: [
+            { id: 'a1', name: 'Diseño ICC', resp: 'Santiago', start: '2026-05-04', end: '2026-05-22', status: 'done', progress: 100 },
+            { id: 'a2', name: 'Recolección MSC', resp: 'Equipo MLG', start: '2026-05-18', end: '2026-06-12', status: 'progress', progress: 60 },
+            { id: 'a3', name: 'Análisis geoespacial', resp: 'Santiago', start: '2026-06-01', end: '2026-06-26', status: 'progress', progress: 30 },
+            { id: 'a4', name: 'Informe integrado', resp: 'Santiago', start: '2026-06-22', end: '2026-07-17', status: 'nostart', progress: 0 }
+          ]
+        },
+        {
+          id: 'p2', name: 'Capacitación Copilot',
+          activities: [
+            { id: 'a5', name: 'Diseño taller', resp: 'Santiago', start: '2026-05-11', end: '2026-05-22', status: 'done', progress: 100 },
+            { id: 'a6', name: 'Sesión co-creación', resp: 'Santiago', start: '2026-05-25', end: '2026-05-29', status: 'progress', progress: 50 }
+          ]
+        }
+      ]
+    },
+    trust: {
+      projects: [
+        {
+          id: 'tp1', name: 'Proyecto inicial',
+          activities: [
+            { id: 'ta1', name: 'Definición de alcance', resp: 'Por asignar', start: '2026-05-15', end: '2026-05-29', status: 'nostart', progress: 0 }
+          ]
+        }
+      ]
+    }
+  };
+
+  let state = {
+    company: 'ubiqcuore',
+    scale: 'week',
+    activeProjectId: null,
+    data: null,
+    editing: null,
+    collapsed: {},
+    drive: {
+      gapiReady: false,
+      tokenClient: null,
+      accessToken: null,
+      fileId: null,
+      saveTimer: null
+    }
+  };
+
+  function loadData() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) state.data = JSON.parse(raw);
+    } catch (e) {}
+    if (!state.data) state.data = seedData;
+
+    try {
+      const c = localStorage.getItem(COLLAPSE_KEY);
+      if (c) state.collapsed = JSON.parse(c);
+    } catch (e) {}
+
+    state.drive.fileId = localStorage.getItem(DRIVE_FILE_ID_KEY);
+  }
+
+  function saveData() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state.data));
+    } catch (e) {
+      alert('Error al guardar: ' + e.message);
+    }
+    scheduleDriveSave();
+  }
+
+  function saveCollapsed() {
+    localStorage.setItem(COLLAPSE_KEY, JSON.stringify(state.collapsed));
+  }
+
+  function getProjects() {
+    if (state.company === 'consolidated') {
+      return [
+        ...state.data.ubiqcuore.projects.map(p => ({...p, _company: 'ubiqcuore'})),
+        ...state.data.trust.projects.map(p => ({...p, _company: 'trust'}))
+      ];
+    }
+    return state.data[state.company].projects;
+  }
+
+  function uid() { return 'x' + Math.random().toString(36).slice(2, 9); }
+  function parseDate(s) { return new Date(s + 'T00:00:00'); }
+  function fmtDate(d) {
+    const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), day = String(d.getDate()).padStart(2,'0');
+    return y + '-' + m + '-' + day;
+  }
+  function daysBetween(a, b) { return Math.round((b - a) / MS_DAY); }
+
+  function getDateRange() {
+    const projects = getProjects();
+    let min = null, max = null;
+    projects.forEach(p => p.activities.forEach(a => {
+      const s = parseDate(a.start), e = parseDate(a.end);
+      if (!min || s < min) min = s;
+      if (!max || e > max) max = e;
+    }));
+    if (!min) { min = new Date(); max = new Date(Date.now() + 30*MS_DAY); }
+    min = new Date(min.getTime() - 3*MS_DAY);
+    max = new Date(max.getTime() + 3*MS_DAY);
+    return { min, max };
+  }
+
+  function buildColumns(scale) {
+    const { min, max } = getDateRange();
+    const cols = [];
+    if (scale === 'day') {
+      let d = new Date(min);
+      while (d <= max) {
+        cols.push({ date: new Date(d), label: String(d.getDate()), days: 1 });
+        d = new Date(d.getTime() + MS_DAY);
+      }
+    } else if (scale === 'week') {
+      let d = new Date(min);
+      const dow = d.getDay();
+      d = new Date(d.getTime() - dow * MS_DAY);
+      while (d <= max) {
+        cols.push({ date: new Date(d), label: 'S' + getWeekNum(d), days: 7 });
+        d = new Date(d.getTime() + 7*MS_DAY);
+      }
+    } else {
+      let d = new Date(min.getFullYear(), min.getMonth(), 1);
+      while (d <= max) {
+        const next = new Date(d.getFullYear(), d.getMonth()+1, 1);
+        const days = daysBetween(d, next);
+        cols.push({ date: new Date(d), label: d.toLocaleDateString('es', { month: 'short', year: '2-digit' }), days });
+        d = next;
+      }
+    }
+    return { cols, min, max };
+  }
+
+  function getWeekNum(d) {
+    const onejan = new Date(d.getFullYear(), 0, 1);
+    return Math.ceil((((d - onejan) / MS_DAY) + onejan.getDay() + 1) / 7);
+  }
+
+  function renderProjects() {
+    const list = document.getElementById('project-list');
+    list.innerHTML = '';
+    if (state.company === 'consolidated') {
+      list.innerHTML = '<p style="font-size:12px; color: var(--text-tertiary); padding: 8px; margin:0;">Vista de solo lectura. Cambia a Ubiqcuore o Trust para editar.</p>';
+      document.getElementById('add-project-sidebar').style.display = 'none';
+      return;
+    }
+    document.getElementById('add-project-sidebar').style.display = '';
+    const projects = state.data[state.company].projects;
+    projects.forEach(p => {
+      const div = document.createElement('div');
+      div.className = 'project-item' + (state.activeProjectId === p.id ? ' active' : '');
+      div.innerHTML = '<span>' + escapeHtml(p.name) + '</span><span class="del" data-id="' + p.id + '">eliminar</span>';
+      div.querySelector('span').addEventListener('click', () => {
+        state.activeProjectId = p.id;
+        renderProjects();
+      });
+      div.querySelector('.del').addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (confirm('¿Eliminar proyecto "' + p.name + '" y todas sus actividades?')) {
+          state.data[state.company].projects = projects.filter(x => x.id !== p.id);
+          if (state.activeProjectId === p.id) state.activeProjectId = null;
+          saveData();
+          renderAll();
+        }
+      });
+      list.appendChild(div);
+    });
+    if (projects.length === 0) {
+      list.innerHTML = '<p style="font-size:12px; color: var(--text-tertiary); padding: 8px; margin:0;">Sin proyectos aún</p>';
+    }
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function renderMetrics() {
+    const section = document.getElementById('metrics-section');
+    if (state.company !== 'consolidated') {
+      section.style.display = 'none';
+      return;
+    }
+    section.style.display = 'block';
+    const ubiqProjects = state.data.ubiqcuore.projects;
+    const trustProjects = state.data.trust.projects;
+    const allProjects = [...ubiqProjects, ...trustProjects];
+    const allActs = allProjects.flatMap(p => p.activities);
+    const byStatus = { nostart: 0, progress: 0, done: 0, late: 0 };
+    let progressSum = 0;
+    allActs.forEach(a => { byStatus[a.status] = (byStatus[a.status] || 0) + 1; progressSum += (a.progress || 0); });
+    const avg = allActs.length ? Math.round(progressSum / allActs.length) : 0;
+    const grid = document.getElementById('metrics-grid');
+    grid.innerHTML =
+      '<div class="metric-card"><p class="metric-label">Proyectos</p><p class="metric-value">' + allProjects.length + '</p><p class="metric-sub">' + ubiqProjects.length + ' Ubiqcuore, ' + trustProjects.length + ' Trust</p></div>' +
+      '<div class="metric-card"><p class="metric-label">Actividades</p><p class="metric-value">' + allActs.length + '</p><p class="metric-sub">total entre las dos empresas</p></div>' +
+      '<div class="metric-card"><p class="metric-label">Avance promedio</p><p class="metric-value">' + avg + '%</p><p class="metric-sub">de todas las actividades</p></div>' +
+      '<div class="metric-card"><p class="metric-label">En curso</p><p class="metric-value" style="color:#185fa5;">' + byStatus.progress + '</p><p class="metric-sub">' + byStatus.done + ' completadas, ' + byStatus.late + ' retrasadas</p></div>';
+  }
+
+  function renderGantt() {
+    const container = document.getElementById('gantt-container');
+    const projects = getProjects();
+    if (projects.length === 0) {
+      container.innerHTML = '<div class="empty-state">Agrega un proyecto para comenzar</div>';
+      return;
+    }
+    const { cols, min } = buildColumns(state.scale);
+    const colWidth = state.scale === 'day' ? 32 : (state.scale === 'week' ? 56 : 90);
+    const totalDays = daysBetween(min, new Date(min.getTime() + cols.reduce((s,c)=>s+c.days,0)*MS_DAY));
+    const pxPerDay = (cols.length * colWidth) / totalDays;
+    const isConsolidated = state.company === 'consolidated';
+
+    let html = '<table class="gantt-table"><thead>';
+    const months = [];
+    let curMonth = null, span = 0;
+    cols.forEach((c, i) => {
+      const m = c.date.toLocaleDateString('es', { month: 'long', year: 'numeric' });
+      if (m !== curMonth) {
+        if (curMonth) months.push({ name: curMonth, span });
+        curMonth = m; span = 1;
+      } else { span++; }
+      if (i === cols.length - 1) months.push({ name: curMonth, span });
+    });
+    html += '<tr><th class="col-task" rowspan="2">Actividad</th><th class="col-resp" rowspan="2">Responsable</th><th class="col-status" rowspan="2">Estado</th>';
+    months.forEach(m => { html += '<th colspan="' + m.span + '">' + escapeHtml(m.name) + '</th>'; });
+    html += '</tr><tr>';
+    cols.forEach(c => { html += '<th style="width:' + colWidth + 'px; min-width:' + colWidth + 'px;">' + c.label + '</th>'; });
+    html += '</tr></thead><tbody>';
+
+    projects.forEach(p => {
+      const collapseKey = (p._company || state.company) + ':' + p.id;
+      const isCollapsed = !!state.collapsed[collapseKey];
+      const badge = isConsolidated && p._company ? '<span class="company-badge ' + p._company + '">' + (p._company === 'ubiqcuore' ? 'Ubiq' : 'Trust') + '</span>' : '';
+      html += '<tr class="project-row" data-collapse-key="' + collapseKey + '">';
+      html += '<td class="col-task" colspan="3" data-toggle="' + collapseKey + '">';
+      html += '<span class="toggle-icon' + (isCollapsed ? ' collapsed' : '') + '">▼</span>';
+      html += '<strong>' + escapeHtml(p.name) + '</strong>' + badge;
+      html += ' <span style="color:var(--text-secondary); font-weight:400;">(' + p.activities.length + ')</span></td>';
+      cols.forEach(() => { html += '<td></td>'; });
+      html += '</tr>';
+
+      if (!isCollapsed) {
+        p.activities.forEach(a => {
+          const aStart = parseDate(a.start), aEnd = parseDate(a.end);
+          const offsetDays = daysBetween(min, aStart);
+          const durDays = Math.max(1, daysBetween(aStart, aEnd) + 1);
+          const left = offsetDays * pxPerDay;
+          const width = durDays * pxPerDay;
+          const editable = !isConsolidated;
+          html += '<tr class="activity-row">';
+          html += '<td class="col-task">' + escapeHtml(a.name);
+          if (editable) {
+            html += '<span class="row-actions"><button class="edit-btn" data-pid="' + p.id + '" data-aid="' + a.id + '">editar</button><button class="del-act-btn" data-pid="' + p.id + '" data-aid="' + a.id + '">eliminar</button></span>';
+          }
+          html += '</td>';
+          html += '<td class="col-resp">' + escapeHtml(a.resp || '') + '</td>';
+          html += '<td class="col-status"><span class="status-pill s-' + a.status + '">' + statusLabel(a.status) + '</span></td>';
+          html += '<td colspan="' + cols.length + '" style="padding:0; position:relative; height:32px;">';
+          html += '<div class="bar s-' + a.status + '" style="left:' + Math.round(left) + 'px; width:' + Math.round(width) + 'px;"' + (editable ? ' data-pid="' + p.id + '" data-aid="' + a.id + '"' : '') + '>';
+          html += '<div class="bar-fill" style="width:' + (a.progress || 0) + '%;"></div>';
+          html += '<div class="bar-label">' + (a.progress || 0) + '%</div></div>';
+          html += '</td></tr>';
+        });
+
+        if (!isConsolidated) {
+          html += '<tr class="add-act-row"><td class="col-task" colspan="3"><button data-pid="' + p.id + '">+ Agregar actividad</button></td>';
+          cols.forEach(() => { html += '<td></td>'; });
+          html += '</tr>';
+        }
+      }
+    });
+
+    html += '</tbody></table>';
+    container.innerHTML = html;
+    attachGanttEvents();
+  }
+
+  function statusLabel(s) {
+    return { nostart: 'No iniciada', progress: 'En curso', done: 'Completada', late: 'Retrasada' }[s] || s;
+  }
+
+  function attachGanttEvents() {
+    document.querySelectorAll('[data-toggle]').forEach(el => {
+      el.addEventListener('click', (e) => {
+        const key = el.dataset.toggle;
+        state.collapsed[key] = !state.collapsed[key];
+        saveCollapsed();
+        renderGantt();
+      });
+    });
+    document.querySelectorAll('.edit-btn, .bar[data-aid]').forEach(el => {
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const pid = el.dataset.pid, aid = el.dataset.aid;
+        if (pid && aid) openEditForm(pid, aid);
+      });
+    });
+    document.querySelectorAll('.del-act-btn').forEach(el => {
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const pid = el.dataset.pid, aid = el.dataset.aid;
+        const p = state.data[state.company].projects.find(x => x.id === pid);
+        const a = p.activities.find(x => x.id === aid);
+        if (confirm('¿Eliminar actividad "' + a.name + '"?')) {
+          p.activities = p.activities.filter(x => x.id !== aid);
+          saveData();
+          renderGantt();
+        }
+      });
+    });
+    document.querySelectorAll('.add-act-row button').forEach(el => {
+      el.addEventListener('click', () => { openNewForm(el.dataset.pid); });
+    });
+  }
+
+  function openNewForm(pid) {
+    state.editing = { pid, aid: null };
+    document.getElementById('form-title').textContent = 'Nueva actividad';
+    document.getElementById('f-name').value = '';
+    document.getElementById('f-resp').value = '';
+    document.getElementById('f-start').value = fmtDate(new Date());
+    document.getElementById('f-end').value = fmtDate(new Date(Date.now() + 7*MS_DAY));
+    document.getElementById('f-status').value = 'nostart';
+    document.getElementById('f-progress').value = 0;
+    document.getElementById('form-panel').classList.add('open');
+    document.getElementById('f-name').focus();
+  }
+
+  function openEditForm(pid, aid) {
+    const p = state.data[state.company].projects.find(x => x.id === pid);
+    if (!p) return;
+    const a = p.activities.find(x => x.id === aid);
+    state.editing = { pid, aid };
+    document.getElementById('form-title').textContent = 'Editar actividad';
+    document.getElementById('f-name').value = a.name;
+    document.getElementById('f-resp').value = a.resp || '';
+    document.getElementById('f-start').value = a.start;
+    document.getElementById('f-end').value = a.end;
+    document.getElementById('f-status').value = a.status;
+    document.getElementById('f-progress').value = a.progress || 0;
+    document.getElementById('form-panel').classList.add('open');
+  }
+
+  function saveForm() {
+    const name = document.getElementById('f-name').value.trim();
+    if (!name) { alert('El nombre es obligatorio'); return; }
+    const start = document.getElementById('f-start').value;
+    const end = document.getElementById('f-end').value;
+    if (!start || !end) { alert('Las fechas son obligatorias'); return; }
+    if (parseDate(end) < parseDate(start)) { alert('La fecha fin debe ser posterior al inicio'); return; }
+    const data = {
+      name,
+      resp: document.getElementById('f-resp').value.trim(),
+      start, end,
+      status: document.getElementById('f-status').value,
+      progress: Math.max(0, Math.min(100, parseInt(document.getElementById('f-progress').value) || 0))
+    };
+    const p = state.data[state.company].projects.find(x => x.id === state.editing.pid);
+    if (state.editing.aid) {
+      Object.assign(p.activities.find(x => x.id === state.editing.aid), data);
+    } else {
+      p.activities.push({ id: uid(), ...data });
+    }
+    saveData();
+    document.getElementById('form-panel').classList.remove('open');
+    renderGantt();
+  }
+
+  function addProject() {
+    if (state.company === 'consolidated') { alert('Cambia a Ubiqcuore o Trust para crear proyectos.'); return; }
+    const name = prompt('Nombre del nuevo proyecto:');
+    if (!name || !name.trim()) return;
+    state.data[state.company].projects.push({ id: uid(), name: name.trim(), activities: [] });
+    saveData();
+    renderAll();
+  }
+
+  function toggleCollapseAll() {
+    const projects = getProjects();
+    const allCollapsed = projects.every(p => state.collapsed[(p._company || state.company) + ':' + p.id]);
+    projects.forEach(p => {
+      const key = (p._company || state.company) + ':' + p.id;
+      state.collapsed[key] = !allCollapsed;
+    });
+    saveCollapsed();
+    document.getElementById('collapse-all-btn').textContent = allCollapsed ? 'Colapsar todo' : 'Expandir todo';
+    renderGantt();
+  }
+
+  function renderAll() {
+    renderProjects();
+    renderMetrics();
+    renderGantt();
+  }
+
+  async function exportPNG() {
+    const target = document.getElementById('gantt-main');
+    try {
+      const canvas = await html2canvas(target, { backgroundColor: '#ffffff', scale: 2 });
+      const link = document.createElement('a');
+      link.download = 'gantt-' + state.company + '-' + fmtDate(new Date()) + '.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } catch (e) { alert('Error al exportar: ' + e.message); }
+  }
+
+  function exportJSON() {
+    const blob = new Blob([JSON.stringify(state.data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.download = 'backup-gantt-' + fmtDate(new Date()) + '.json';
+    link.href = url;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function importJSON() { document.getElementById('import-file').click(); }
+
+  function handleImportFile(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const imported = JSON.parse(ev.target.result);
+        if (!imported.ubiqcuore || !imported.trust) {
+          alert('Archivo inválido. Debe contener las claves "ubiqcuore" y "trust".');
+          return;
+        }
+        if (!confirm('Esto reemplazará todos los datos actuales. ¿Continuar?')) return;
+        state.data = imported;
+        saveData();
+        renderAll();
+        alert('Datos importados correctamente.');
+      } catch (err) { alert('Error al leer el archivo: ' + err.message); }
+      e.target.value = '';
+    };
+    reader.readAsText(file);
+  }
+
+  // ============ GOOGLE DRIVE ============
+
+  function setSyncStatus(text, cls) {
+    const el = document.getElementById('sync-status');
+    el.textContent = text;
+    el.className = 'sync-badge ' + (cls || '');
+  }
+
+  function getClientId() { return localStorage.getItem(CLIENT_ID_KEY); }
+
+  function openConfigModal() {
+    document.getElementById('client-id-input').value = getClientId() || '';
+    document.getElementById('config-modal').classList.add('open');
+  }
+
+  function saveClientId() {
+    const id = document.getElementById('client-id-input').value.trim();
+    if (!id) { alert('Ingresa el Client ID'); return; }
+    localStorage.setItem(CLIENT_ID_KEY, id);
+    document.getElementById('config-modal').classList.remove('open');
+    initDriveAuth();
+  }
+
+  function initDriveAuth() {
+    const clientId = getClientId();
+    if (!clientId) { openConfigModal(); return; }
+    if (!window.google || !window.google.accounts) {
+      setSyncStatus('Cargando Google...', 'syncing');
+      setTimeout(initDriveAuth, 500);
+      return;
+    }
+    state.drive.tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: clientId,
+      scope: SCOPES,
+      callback: handleAuthResponse
+    });
+    state.drive.tokenClient.requestAccessToken({ prompt: 'consent' });
+    setSyncStatus('Autenticando...', 'syncing');
+  }
+
+  async function handleAuthResponse(resp) {
+    if (resp.error) {
+      setSyncStatus('Error de auth', 'error');
+      alert('Error al autenticar: ' + resp.error);
+      return;
+    }
+    state.drive.accessToken = resp.access_token;
+    setSyncStatus('Sincronizando...', 'syncing');
+    try {
+      await loadDriveGapi();
+      await findOrCreateDriveFile();
+      await loadFromDrive();
+      setSyncStatus('Conectado a Drive', 'connected');
+      document.getElementById('drive-btn').textContent = 'Reconectar Drive';
+    } catch (e) {
+      setSyncStatus('Error: ' + e.message, 'error');
+    }
+  }
+
+  function loadDriveGapi() {
+    return new Promise((resolve, reject) => {
+      if (state.drive.gapiReady) {
+        gapi.client.setToken({ access_token: state.drive.accessToken });
+        return resolve();
+      }
+      gapi.load('client', async () => {
+        try {
+          await gapi.client.init({ discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'] });
+          gapi.client.setToken({ access_token: state.drive.accessToken });
+          state.drive.gapiReady = true;
+          resolve();
+        } catch (e) { reject(e); }
+      });
+    });
+  }
+
+  async function findOrCreateDriveFile() {
+    if (state.drive.fileId) {
+      try {
+        await gapi.client.drive.files.get({ fileId: state.drive.fileId, fields: 'id' });
+        return;
+      } catch (e) { state.drive.fileId = null; }
+    }
+    const res = await gapi.client.drive.files.list({
+      q: "name='" + DRIVE_FILENAME + "' and trashed=false",
+      fields: 'files(id, name)',
+      spaces: 'drive'
+    });
+    if (res.result.files && res.result.files.length > 0) {
+      state.drive.fileId = res.result.files[0].id;
+    } else {
+      const createRes = await gapi.client.drive.files.create({
+        resource: { name: DRIVE_FILENAME, mimeType: 'application/json' },
+        fields: 'id'
+      });
+      state.drive.fileId = createRes.result.id;
+      await saveToDrive();
+    }
+    localStorage.setItem(DRIVE_FILE_ID_KEY, state.drive.fileId);
+  }
+
+  async function loadFromDrive() {
+    const res = await gapi.client.drive.files.get({ fileId: state.drive.fileId, alt: 'media' });
+    const content = res.body;
+    if (!content || content.trim() === '') return;
+    try {
+      const remote = JSON.parse(content);
+      if (remote.ubiqcuore && remote.trust) {
+        const useRemote = confirm('Se encontraron datos en Drive. ¿Cargarlos? (Cancelar mantiene los datos locales y los sube a Drive)');
+        if (useRemote) {
+          state.data = remote;
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(state.data));
+          renderAll();
+        } else {
+          await saveToDrive();
+        }
+      }
+    } catch (e) {}
+  }
+
+  function scheduleDriveSave() {
+    if (!state.drive.accessToken || !state.drive.fileId) return;
+    clearTimeout(state.drive.saveTimer);
+    state.drive.saveTimer = setTimeout(saveToDrive, 1500);
+  }
+
+  async function saveToDrive() {
+    if (!state.drive.accessToken || !state.drive.fileId) return;
+    try {
+      setSyncStatus('Guardando...', 'syncing');
+      const body = JSON.stringify(state.data, null, 2);
+      const res = await fetch('https://www.googleapis.com/upload/drive/v3/files/' + state.drive.fileId + '?uploadType=media', {
+        method: 'PATCH',
+        headers: {
+          'Authorization': 'Bearer ' + state.drive.accessToken,
+          'Content-Type': 'application/json'
+        },
+        body: body
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      setSyncStatus('Conectado a Drive', 'connected');
+    } catch (e) {
+      setSyncStatus('Error al guardar', 'error');
+    }
+  }
+
+  function bindEvents() {
+    document.querySelectorAll('.company-tab').forEach(b => {
+      b.addEventListener('click', () => {
+        document.querySelectorAll('.company-tab').forEach(x => x.classList.remove('active'));
+        b.classList.add('active');
+        state.company = b.dataset.company;
+        state.activeProjectId = null;
+        renderAll();
+      });
+    });
+    document.getElementById('scale-select').addEventListener('change', (e) => {
+      state.scale = e.target.value;
+      renderGantt();
+    });
+    document.getElementById('collapse-all-btn').addEventListener('click', toggleCollapseAll);
+    document.getElementById('add-project-btn').addEventListener('click', addProject);
+    document.getElementById('add-project-sidebar').addEventListener('click', addProject);
+    document.getElementById('export-btn').addEventListener('click', exportPNG);
+    document.getElementById('export-json-btn').addEventListener('click', exportJSON);
+    document.getElementById('import-json-btn').addEventListener('click', importJSON);
+    document.getElementById('import-file').addEventListener('change', handleImportFile);
+    document.getElementById('drive-btn').addEventListener('click', initDriveAuth);
+    document.getElementById('form-cancel').addEventListener('click', () => {
+      document.getElementById('form-panel').classList.remove('open');
+    });
+    document.getElementById('form-save').addEventListener('click', saveForm);
+    document.getElementById('config-cancel').addEventListener('click', () => {
+      document.getElementById('config-modal').classList.remove('open');
+    });
+    document.getElementById('config-save').addEventListener('click', saveClientId);
+  }
+
+  loadData();
+  bindEvents();
+  renderAll();
+})();
+</script>
+</body>
+</html>
